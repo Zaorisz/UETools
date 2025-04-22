@@ -4,6 +4,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+DEFINE_LOG_CATEGORY_STATIC(PowerLines, Log, All)
+
 APowerLines::APowerLines()
 {
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
@@ -15,7 +17,7 @@ void APowerLines::UpdateWires()
 	ClearWires();
 	if (SocketTargetTransforms.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("There are no target transforms: %s"), *GetName());
+		UE_LOG(PowerLines, Log, TEXT("There are no target transforms: %s"), *GetName());
 		return;
 	}
 	TArray<FName> SocketNames = StaticMesh->GetAllSocketNames();
@@ -26,7 +28,7 @@ void APowerLines::UpdateWires()
 			AddComponentByClass(UCableComponent::StaticClass(), false, TargetTransform, false));
 		if (!IsValid(NewCable))
 		{
-			UE_LOG(LogTemp, Log, TEXT("Failed to create new cable"));
+			UE_LOG(PowerLines, Log, TEXT("Failed to create new cable"));
 			continue;
 		}
 		Cables.Add(NewCable);
@@ -59,7 +61,7 @@ void APowerLines::UpdateSocketLocations()
 	APowerLines* Next = Cast<APowerLines>(NextPoint.Get());
 	if (!IsValid(Next) && !IsValid(Next->StaticMesh))
 	{
-		UE_LOG(LogTemp, Log, TEXT("%s Invalid setup of next point"), *GetName());
+		UE_LOG(PowerLines, Log, TEXT("%s Invalid setup of next point"), *GetName());
 		return;
 	}
 	TArray<FName> SocketNames = Next->StaticMesh->GetAllSocketNames();
