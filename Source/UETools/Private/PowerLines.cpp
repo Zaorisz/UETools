@@ -6,7 +6,6 @@
 
 APowerLines::APowerLines()
 {
-	PrimaryActorTick.bCanEverTick = true;
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
 	SetRootComponent(StaticMesh);
 }
@@ -16,21 +15,23 @@ void APowerLines::UpdateWires()
 	ClearWires();
 	if (SocketTargetTransforms.IsEmpty())
 	{
+		UE_LOG(LogTemp, Log, TEXT("There are no target transforms: %s"), *GetName());
 		return;
 	}
 	TArray<FName> SocketNames = StaticMesh->GetAllSocketNames();
-	for (int i = 0; i < SocketNames.Num(); i++)
+	for (int32 Index = 0; Index < SocketNames.Num(); Index++)
 	{
-		FTransform TargetTransform = StaticMesh->GetSocketTransform(SocketNames[i], ERelativeTransformSpace::RTS_Actor);
+		FTransform TargetTransform = StaticMesh->GetSocketTransform(SocketNames[Index], ERelativeTransformSpace::RTS_Actor);
 		UCableComponent* NewCable = Cast<UCableComponent>(
 			AddComponentByClass(UCableComponent::StaticClass(), false, TargetTransform, false));
 		if (!IsValid(NewCable))
 		{
-			return;
+			UE_LOG(LogTemp, Log, TEXT("Failed to create new cable"));
+			continue;
 		}
 		Cables.Add(NewCable);
 		NewCable->EndLocation = UKismetMathLibrary::InverseTransformLocation(
-			GetActorTransform(), SocketTargetTransforms[i]);
+			GetActorTransform(), SocketTargetTransforms[Index]);
 		NewCable->CableWidth = CableWidth;
 		NewCable->CableGravityScale = CableGravityScale;
 	}
@@ -38,7 +39,7 @@ void APowerLines::UpdateWires()
 
 void APowerLines::ClearWires()
 {
-	for (auto Cable : Cables)
+	for (UCableComponent* Cable : Cables)
 	{
 		if (IsValid(Cable))
 		{
@@ -50,14 +51,19 @@ void APowerLines::ClearWires()
 
 void APowerLines::UpdateSocketLocations()
 {
-	APowerLines* Next = Cast<APowerLines>(NextPoint.Get());
-	if (!IsValid(Next))
+	SocketTargetTransforms.Reset();
+	if(!NextPoint.IsValid())
 	{
 		return;
 	}
-	SocketTargetTransforms.Empty();
+	APowerLines* Next = Cast<APowerLines>(NextPoint.Get());
+	if (!IsValid(Next) && !IsValid(Next->StaticMesh))
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s Invalid setup of next point"), *GetName());
+		return;
+	}
 	TArray<FName> SocketNames = Next->StaticMesh->GetAllSocketNames();
-	for (auto SocketName : SocketNames)
+	for (FName SocketName : SocketNames)
 	{
 		SocketTargetTransforms.Add(Next->StaticMesh->GetSocketLocation(SocketName));
 	}
@@ -71,23 +77,30 @@ void APowerLines::BeginPlay()
 
 void APowerLines::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Super::EndPlay(EndPlayReason);
 	ClearWires();
+	Super::EndPlay(EndPlayReason);
 }
 
 void APowerLines::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	if(!NextPoint.IsValid())
+	{
+		return;
+	}
 	APowerLines* Next = Cast<APowerLines>(NextPoint.Get());
-	if (!IsValid(Next))
+	if (IsValid(Next))
+	{
+		Next->PreviousPoint = this;
+	}
+	if(!PreviousPoint.IsValid())
 	{
 		return;
 	}
-	Next->PreviousPoint = this;
 	APowerLines* Previous = Cast<APowerLines>(PreviousPoint.Get());
-	if (!IsValid(Previous))
+	if (IsValid(Previous))
 	{
-		return;
+		Previous->UpdateSocketLocations();
 	}
-	Previous->UpdateSocketLocations();
+	
 }

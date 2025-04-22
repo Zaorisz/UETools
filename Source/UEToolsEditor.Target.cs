@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class UEToolsEditorTarget : TargetRules
 {
-	public UEToolsEditorTarget( TargetInfo Target) : base(Target)
+	public UEToolsEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
